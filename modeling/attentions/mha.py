@@ -10,7 +10,7 @@ class MultiHeadAttention(Attention):
     def __init__(self, config: Config, layer_idx: int = 0):
         super().__init__(config, layer_idx)
 
-        self.num_heads = config.num_heads
+        self.num_heads = config.attention_config.num_heads
         self.hidden_size = config.hidden_size
         assert (
             self.hidden_size % self.num_heads == 0
