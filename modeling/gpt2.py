@@ -27,8 +27,9 @@ class DecoderBlock(nn.Module):
         self.ln_2 = nn.LayerNorm(config.hidden_size)
         self.mlp = MLP(config)
 
-    def forward(self, x):
-        x = x + self.attn(self.ln_1(x))
+    def forward(self, x, kv_cache=None):
+        attn, kv_cache = self.attn(self.ln_1(x), kv_cache)
+        x = x + attn
         x = x + self.mlp(self.ln_2(x))
         return x
 
@@ -68,7 +69,7 @@ class GPT2(nn.Module):
         # Weights tieing
         self.projector.weight = self.embedding.embedding.weight
 
-    def forward(self, ids: torch.Tensor, targets=None):
+    def forward(self, ids: torch.Tensor, targets=None, kv_cache=None):
         B, S = ids.shape
 
         assert S <= self.config.max_seq_len, "Sequence length exceeds maximum length"
@@ -76,11 +77,14 @@ class GPT2(nn.Module):
         x = self.embedding(ids)
 
         for block in self.blocks:
-            x = block(x)
+            x = block(x, kv_cache)
         x = self.layer_norm(x)
         logits = self.projector(x)
 
         loss = None
         if targets is not None:
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+
+        if kv_cache is not None:
+            return logits, loss, kv_cache
         return logits, loss

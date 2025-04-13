@@ -1,6 +1,6 @@
 import torch
 import torch.optim as optim
-from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter  # type: ignore
 import time
 
 from modeling.config import Config
@@ -11,13 +11,13 @@ from utils import *
 from metrics import *
 
 #### TRAINING PARAMETERS ####
-TOTAL_STEPS = 1000
-WARMUP_STEPS = 50
+TOTAL_STEPS = 10000
+WARMUP_STEPS = 100
 LEARNING_RATE = 1e-4
 
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 SENTENCE_LENGTH = 128
-DATA_PATH = "./data/input.txt"
+DATA_PATH = "./data/train.txt"
 
 SEED = 42
 #### TRAINING PARAMETERS ####
@@ -26,7 +26,7 @@ SEED = 42
 if __name__ == "__main__":
     # Config
     config = Config(attention_name="mha")
-    device = torch.device("mps")
+    device = get_device()
 
     model = gpt2.GPT2(config).to(device)
     model_save_dir = f"logs/{config.attention_name}"
@@ -34,6 +34,13 @@ if __name__ == "__main__":
     profiler_dir = f"{model_save_dir}/profiler"
 
     seed_everything(SEED)
+    print(
+        f"Model: {config.attention_name} | Batch Size: {BATCH_SIZE} | Sentence Length: {SENTENCE_LENGTH}"
+    )
+    print(f"Total Parameters: {count_params(model) / 1e6:.2f}M")
+    print(
+        f"Total Steps: {TOTAL_STEPS} | Warmup Steps: {WARMUP_STEPS} | Learning Rate: {LEARNING_RATE}"
+    )
 
     optimizer = optim.AdamW(
         model.parameters(),
@@ -41,8 +48,10 @@ if __name__ == "__main__":
         betas=(0.9, 0.95),
         eps=1e-8,
     )
-    scheduler = cosine_with_warmup_lr_scheduler(
-        optimizer, total_steps=TOTAL_STEPS, warmup_steps=WARMUP_STEPS
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer,
+        T_max=TOTAL_STEPS,
+        eta_min=1e-8,
     )
 
     dataloader = DataLoader(B=BATCH_SIZE, T=SENTENCE_LENGTH, data_path=DATA_PATH)
@@ -50,7 +59,6 @@ if __name__ == "__main__":
     with torch.profiler.profile(
         activities=[
             torch.profiler.ProfilerActivity.CPU,
-            # Works for M1/M2 GPUs
         ],
         schedule=torch.profiler.schedule(wait=2, warmup=2, active=6, repeat=1),
         on_trace_ready=torch.profiler.tensorboard_trace_handler(profiler_dir),
@@ -86,7 +94,9 @@ if __name__ == "__main__":
             writer.add_scalar("Loss/train", loss.item(), step)
 
             if step % 10 == 0:
-                print(f"Step {step}: loss = {loss.item()}")
+                print(
+                    f"[Step {step}] LR:{scheduler.get_last_lr()[0]:.8f} | Loss: {loss.item():.2f} | TPS: {tps:.2f} tokens/sec | Memory: {memory_usage:.2f} MB"
+                )
 
     # Save the model
     save_model(model, model_save_dir, config.attention_name + "_model")

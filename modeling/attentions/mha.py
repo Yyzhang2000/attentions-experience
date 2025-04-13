@@ -1,9 +1,12 @@
 import torch
 import torch.nn as nn
 
+from typing import Optional
+
 from .rope import apply_rotary_embeddings, precompute_theta_pos_frequencies
 from ..config import Config
 from .base import Attention
+from ..kvcache import KVCache
 
 
 class MultiHeadAttention(Attention):
@@ -35,7 +38,7 @@ class MultiHeadAttention(Attention):
             persistent=False,
         )
 
-    def forward(self, x, kv_cache=None, pos=None):
+    def forward(self, x, kv_cache: Optional[KVCache] = None):
         B, S, D = x.shape
 
         q, k, v = map(
@@ -50,19 +53,20 @@ class MultiHeadAttention(Attention):
 
         q = q.transpose(1, 2)
         k = k.transpose(1, 2)
-        v = v.transpose(1, 2)
+        v = v.transpose(1, 2)  # [B, H, S, D]
 
         # If kv_cache is provided, use it for k and v
-        if kv_cache is not None and pos is not None:
-            k = torch.cat([kv_cache, k], dim=2)
-            v = torch.cat([kv_cache, v], dim=2)
+        if kv_cache is not None:
+            k, v = kv_cache.update(k, v, self.layer_idx)
 
         # Compute attention scores
         scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_dim**0.5)
 
-        scores = scores.masked_fill(
-            self.causal_mask[:S, :S].to(x.device) == 0, float("-inf")
-        )
+        if q.shape[-2] == k.shape[-2]:  # In the prefilling stage. or not use KV Cache
+            # If S not 1, we need to apply the causal mask
+            scores = scores.masked_fill(
+                self.causal_mask[:S, :S].to(x.device) == 0, float("-inf")
+            )
 
         attn_weights = scores.softmax(dim=-1)
         attn_weights = self.dropout(attn_weights)
@@ -71,4 +75,4 @@ class MultiHeadAttention(Attention):
         attn = self.o(attn)
         attn = self.dropout(attn)
 
-        return attn
+        return attn, kv_cache
