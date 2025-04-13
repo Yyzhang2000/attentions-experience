@@ -69,7 +69,7 @@ if __name__ == "__main__":
             torch.profiler.ProfilerActivity.CPU,
             # torch.profiler.ProfilerActivity.CUDA,
         ],
-        schedule=torch.profiler.schedule(wait=1, warmup=2, active=20),
+        schedule=torch.profiler.schedule(wait=1, warmup=2, active=20, repeat=1),
         on_trace_ready=torch.profiler.tensorboard_trace_handler(profiler_dir),
         record_shapes=True,
         profile_memory=True,
@@ -102,7 +102,7 @@ if __name__ == "__main__":
             writer.add_scalar("TokensPerSec/train", tps, step)
             writer.add_scalar("Loss/train", loss.item(), step)
 
-            if step % 100 == 0:
+            if step % 10 == 0:
                 logging.info(
                     f"[Step {step}] LR:{scheduler.get_last_lr()[0]:.8f} | Loss: {loss.item():.2f} | TPS: {tps:.2f} tokens/sec | Memory: {memory_usage:.2f} MB"
                 )
