@@ -1,6 +1,7 @@
 import torch
 import os
 import numpy as np
+import logging
 
 
 def save_model(model, model_dir, model_name):
@@ -26,13 +27,13 @@ def get_device():
     """
     if torch.cuda.is_available():
         device = torch.device("cuda")
-        print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+        logging.info(f"Using GPU: {torch.cuda.get_device_name(0)}")
     elif torch.backends.mps.is_available():
         device = torch.device("mps")
-        print("Using Apple Silicon GPU")
+        logging.info("Using Apple Silicon GPU")
     else:
         device = torch.device("cpu")
-        print("Using CPU")
+        logging.info("Using CPU")
     return device
 
 
@@ -78,3 +79,38 @@ def seed_everything(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     np.random.seed(seed)
+
+
+def set_logger(log_path):
+    """Set the logger to log info in terminal and file `log_path`.
+
+    In general, it is useful to have a logger so that every output to the terminal is saved
+    in a permanent file. Here we save it to `model_dir/train.log`.
+
+    Example:
+    ```
+    logging.info("Starting training...")
+    ```
+
+    Args:
+        log_path: (string) where to log
+    """
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    # Clear any existing handlers (avoid duplication)
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
+    if not logger.handlers:
+        # Logging to a file
+        file_handler = logging.FileHandler(log_path)
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s:%(levelname)s: %(message)s")
+        )
+        logger.addHandler(file_handler)
+
+        # Logging to console
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(stream_handler)
