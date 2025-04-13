@@ -21,13 +21,16 @@ BATCH_SIZE = 64
 SENTENCE_LENGTH = 128
 DATA_PATH = "./data/train.txt"
 
+ATTENTION_NAME = "gqa"
+
 SEED = 42
 #### TRAINING PARAMETERS ####
 
 
 if __name__ == "__main__":
     # Config
-    config = Config(attention_name="mha")
+    config = Config(attention_name=ATTENTION_NAME)
+    print(config.attention_name)
     model_save_dir = f"logs/{config.attention_name}"
     writer = SummaryWriter(log_dir=model_save_dir)
     profiler_dir = f"{model_save_dir}/profiler"
