@@ -14,6 +14,7 @@ from metrics import *
 TOTAL_STEPS = 10000
 WARMUP_STEPS = 100
 LEARNING_RATE = 1e-4
+WEIGHT_DECAY = 0.01
 
 BATCH_SIZE = 64
 SENTENCE_LENGTH = 128
@@ -46,6 +47,7 @@ if __name__ == "__main__":
         model.parameters(),
         lr=LEARNING_RATE,
         betas=(0.9, 0.95),
+        weight_decay=WEIGHT_DECAY,
         eps=1e-8,
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
