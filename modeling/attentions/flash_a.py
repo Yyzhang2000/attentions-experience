@@ -19,7 +19,7 @@ from ..kvcache import KVCache
 #### End of Flash Attention Implementation ####
 
 
-class MultiHeadAttention(Attention):
+class FlashAttention(Attention):
     def __init__(self, config: Config, layer_idx: int = 0):
         super().__init__(config, layer_idx)
 
